@@ -1,120 +1,196 @@
 <!DOCTYPE html>
 <html lang="id">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Vigenère Cipher Tool</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 text-gray-800 p-4">
-  <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-md">
-    <h1 class="text-2xl font-bold mb-4 text-center">🔐 Vigenère Cipher Tool</h1>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vigenère Cipher Tool</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="bg-gray-100 text-gray-800 p-4">
+    <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-md">
+      <h1 class="text-2xl font-bold mb-4 text-center">
+        🔐 Vigenère Cipher Tool
+      </h1>
 
-    <div class="mb-4">
-      <label class="block font-semibold">Pilih Mode:</label>
-      <select id="mode" class="w-full mt-1 p-2 border rounded">
-        <option value="encrypt">Enkripsi</option>
-        <option value="decrypt">Dekripsi</option>
-        <option value="crack">Brute-force Crack</option>
-      </select>
+      <div class="mb-4">
+        <label class="block font-semibold">Pilih Mode:</label>
+        <select id="mode" class="w-full mt-1 p-2 border rounded">
+          <option value="encrypt">Enkripsi</option>
+          <option value="decrypt">Dekripsi</option>
+          <option value="crack">Brute-force Crack</option>
+          <option value="bestguess">Crack (Best Guess)</option>
+        </select>
+      </div>
+
+      <div class="mb-4">
+        <label class="block font-semibold">Teks:</label>
+        <textarea
+          id="inputText"
+          class="w-full mt-1 p-2 border rounded"
+          rows="3"
+        ></textarea>
+      </div>
+
+      <div id="keyInput" class="mb-4">
+        <label class="block font-semibold">Key:</label>
+        <input id="key" type="text" class="w-full mt-1 p-2 border rounded" />
+      </div>
+
+      <div id="maxKeyLenInput" class="mb-4 hidden">
+        <label class="block font-semibold">Panjang Maks Key:</label>
+        <input
+          id="maxKeyLen"
+          type="number"
+          value="4"
+          min="1"
+          max="10"
+          class="w-full mt-1 p-2 border rounded"
+        />
+      </div>
+
+      <button
+        onclick="run()"
+        class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+      >
+        Jalankan
+      </button>
+
+      <div class="mt-6">
+        <h2 class="font-bold mb-2">Hasil:</h2>
+        <pre
+          id="output"
+          class="bg-gray-200 p-3 rounded whitespace-pre-wrap"
+        ></pre>
+      </div>
     </div>
 
-    <div class="mb-4">
-      <label class="block font-semibold">Teks:</label>
-      <textarea id="inputText" class="w-full mt-1 p-2 border rounded" rows="3"></textarea>
-    </div>
+    <script>
+      const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
 
-    <div id="keyInput" class="mb-4">
-      <label class="block font-semibold">Key:</label>
-      <input id="key" type="text" class="w-full mt-1 p-2 border rounded" />
-    </div>
-
-    <div id="maxKeyLenInput" class="mb-4 hidden">
-      <label class="block font-semibold">Panjang Maks Key:</label>
-      <input id="maxKeyLen" type="number" value="4" min="1" max="10" class="w-full mt-1 p-2 border rounded" />
-    </div>
-
-    <button onclick="run()" class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">Jalankan</button>
-
-    <div class="mt-6">
-      <h2 class="font-bold mb-2">Hasil:</h2>
-      <pre id="output" class="bg-gray-200 p-3 rounded whitespace-pre-wrap"></pre>
-    </div>
-  </div>
-
-  <script>
-    const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
-
-    function formatText(text) {
-      return text.toLowerCase().replace(/[^a-z]/g, '');
-    }
-
-    function generateKeystream(text, key) {
-      key = formatText(key);
-      return key.repeat(Math.floor(text.length / key.length)) + key.slice(0, text.length % key.length);
-    }
-
-    function encrypt(text, key) {
-      text = formatText(text);
-      const keystream = generateKeystream(text, key);
-      return [...text].map((char, i) => {
-        const val = (ALPHABET.indexOf(char) + ALPHABET.indexOf(keystream[i])) % 26;
-        return ALPHABET[val];
-      }).join('');
-    }
-
-    function decrypt(cipher, key) {
-      cipher = formatText(cipher);
-      const keystream = generateKeystream(cipher, key);
-      return [...cipher].map((char, i) => {
-        const val = (ALPHABET.indexOf(char) - ALPHABET.indexOf(keystream[i]) + 26) % 26;
-        return ALPHABET[val];
-      }).join('');
-    }
-
-    function crack(ciphertext, maxKeyLen) {
-      ciphertext = formatText(ciphertext);
-      let results = [];
-      const tryKeys = (len, prefix = "") => {
-        if (prefix.length === len) {
-          const decrypted = decrypt(ciphertext, prefix);
-          results.push(`[Key: ${prefix}] => ${decrypted}`);
-          return;
-        }
-        for (let ch of ALPHABET) {
-          tryKeys(len, prefix + ch);
-        }
-      };
-      for (let i = 1; i <= maxKeyLen; i++) {
-        tryKeys(i);
+      function formatText(text) {
+        return text.toLowerCase().replace(/[^a-z]/g, "");
       }
-      return results;
-    }
 
-    function run() {
-      const mode = document.getElementById("mode").value;
-      const text = document.getElementById("inputText").value;
-      const key = document.getElementById("key").value;
-      const output = document.getElementById("output");
-      output.textContent = "Memproses...";
+      function generateKeystream(text, key) {
+        key = formatText(key);
+        return (
+          key.repeat(Math.floor(text.length / key.length)) +
+          key.slice(0, text.length % key.length)
+        );
+      }
 
-      setTimeout(() => {
-        if (mode === "encrypt") {
-          output.textContent = encrypt(text, key);
-        } else if (mode === "decrypt") {
-          output.textContent = decrypt(text, key);
-        } else if (mode === "crack") {
-          const maxKeyLen = parseInt(document.getElementById("maxKeyLen").value);
-          const results = crack(text, maxKeyLen);
-          output.textContent = results.join('\n');
+      function encrypt(text, key) {
+        text = formatText(text);
+        const keystream = generateKeystream(text, key);
+        return [...text]
+          .map((char, i) => {
+            const val =
+              (ALPHABET.indexOf(char) + ALPHABET.indexOf(keystream[i])) % 26;
+            return ALPHABET[val];
+          })
+          .join("");
+      }
+
+      function decrypt(cipher, key) {
+        cipher = formatText(cipher);
+        const keystream = generateKeystream(cipher, key);
+        return [...cipher]
+          .map((char, i) => {
+            const val =
+              (ALPHABET.indexOf(char) - ALPHABET.indexOf(keystream[i]) + 26) %
+              26;
+            return ALPHABET[val];
+          })
+          .join("");
+      }
+
+      function crack(ciphertext, maxKeyLen) {
+        ciphertext = formatText(ciphertext);
+        let results = [];
+        const tryKeys = (len, prefix = "") => {
+          if (prefix.length === len) {
+            const decrypted = decrypt(ciphertext, prefix);
+            results.push(`[Key: ${prefix}] => ${decrypted}`);
+            return;
+          }
+          for (let ch of ALPHABET) {
+            tryKeys(len, prefix + ch);
+          }
+        };
+        for (let i = 1; i <= maxKeyLen; i++) {
+          tryKeys(i);
         }
-      }, 100);
-    }
+        return results;
+      }
 
-    document.getElementById("mode").addEventListener("change", (e) => {
-      document.getElementById("keyInput").classList.toggle("hidden", e.target.value === "crack");
-      document.getElementById("maxKeyLenInput").classList.toggle("hidden", e.target.value !== "crack");
-    });
-  </script>
-</body>
+      function crackBestGuess(ciphertext, keyLen) {
+        ciphertext = formatText(ciphertext);
+        let bestScore = 0;
+        let bestKey = "";
+        let bestPlain = "";
+
+        function score(text) {
+          const common = "etaoinshrdlu";
+          return [...text].reduce((s, c) => s + (common.includes(c) ? 1 : 0), 0);
+        }
+
+        const tryKeys = (len, prefix = "") => {
+          if (prefix.length === len) {
+            const plain = decrypt(ciphertext, prefix);
+            const sc = score(plain);
+            if (sc > bestScore) {
+              bestScore = sc;
+              bestKey = prefix;
+              bestPlain = plain;
+            }
+            return;
+          }
+          for (let ch of ALPHABET) {
+            tryKeys(len, prefix + ch);
+          }
+        };
+
+        tryKeys(keyLen);
+        return `[Kemungkinan Terbaik]\nKey: ${bestKey}\nPlaintext: ${bestPlain}`;
+      }
+
+      function run() {
+        const mode = document.getElementById("mode").value;
+        const text = document.getElementById("inputText").value;
+        const key = document.getElementById("key").value;
+        const output = document.getElementById("output");
+        output.textContent = "Memproses...";
+
+        setTimeout(() => {
+          if (mode === "encrypt") {
+            output.textContent = encrypt(text, key);
+          } else if (mode === "decrypt") {
+            output.textContent = decrypt(text, key);
+          } else if (mode === "crack") {
+            const maxKeyLen = parseInt(
+              document.getElementById("maxKeyLen").value
+            );
+            const results = crack(text, maxKeyLen);
+            output.textContent = results.join("\n");
+          } else if (mode === "bestguess") {
+            const keyLen = parseInt(
+              document.getElementById("maxKeyLen").value
+            );
+            const result = crackBestGuess(text, keyLen);
+            output.textContent = result;
+          }
+        }, 100);
+      }
+
+      document.getElementById("mode").addEventListener("change", (e) => {
+        const val = e.target.value;
+        document
+          .getElementById("keyInput")
+          .classList.toggle("hidden", val === "crack" || val === "bestguess");
+        document
+          .getElementById("maxKeyLenInput")
+          .classList.toggle("hidden", val !== "crack" && val !== "bestguess");
+      });
+    </script>
+  </body>
 </html>
