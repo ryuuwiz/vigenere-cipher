@@ -19,6 +19,7 @@
           <option value="decrypt">Dekripsi</option>
           <option value="crack">Brute-force Crack</option>
           <option value="bestguess">Crack (Best Guess)</option>
+          <option value="autocrack">Auto Crack</option>
         </select>
       </div>
 
@@ -97,8 +98,7 @@
         return [...cipher]
           .map((char, i) => {
             const val =
-              (ALPHABET.indexOf(char) - ALPHABET.indexOf(keystream[i]) + 26) %
-              26;
+              (ALPHABET.indexOf(char) - ALPHABET.indexOf(keystream[i]) + 26) % 26;
             return ALPHABET[val];
           })
           .join("");
@@ -154,6 +154,51 @@
         return `[Kemungkinan Terbaik]\nKey: ${bestKey}\nPlaintext: ${bestPlain}`;
       }
 
+      function autoCrack(ciphertext) {
+        ciphertext = formatText(ciphertext);
+        let bestResult = '';
+        let bestKey = '';
+        let bestPlain = '';
+        let bestScore = 0;
+
+        function score(text) {
+          const common = "etaoinshrdlu";
+          return [...text].reduce((s, c) => s + (common.includes(c) ? 1 : 0), 0);
+        }
+
+        for (let keyLen = 1; keyLen <= 10; keyLen++) {
+          let currentBestScore = 0;
+          let currentBestKey = "";
+          let currentBestPlain = "";
+
+          const tryKeys = (len, prefix = "") => {
+            if (prefix.length === len) {
+              const plain = decrypt(ciphertext, prefix);
+              const sc = score(plain);
+              if (sc > currentBestScore) {
+                currentBestScore = sc;
+                currentBestKey = prefix;
+                currentBestPlain = plain;
+              }
+              return;
+            }
+            for (let ch of ALPHABET) {
+              tryKeys(len, prefix + ch);
+            }
+          };
+
+          tryKeys(keyLen);
+
+          if (currentBestScore > bestScore) {
+            bestScore = currentBestScore;
+            bestKey = currentBestKey;
+            bestPlain = currentBestPlain;
+          }
+        }
+
+        return `[AUTO CRACK]\nKey: ${bestKey}\nPlaintext: ${bestPlain}`;
+      }
+
       function run() {
         const mode = document.getElementById("mode").value;
         const text = document.getElementById("inputText").value;
@@ -167,16 +212,15 @@
           } else if (mode === "decrypt") {
             output.textContent = decrypt(text, key);
           } else if (mode === "crack") {
-            const maxKeyLen = parseInt(
-              document.getElementById("maxKeyLen").value
-            );
+            const maxKeyLen = parseInt(document.getElementById("maxKeyLen").value);
             const results = crack(text, maxKeyLen);
             output.textContent = results.join("\n");
           } else if (mode === "bestguess") {
-            const keyLen = parseInt(
-              document.getElementById("maxKeyLen").value
-            );
+            const keyLen = parseInt(document.getElementById("maxKeyLen").value);
             const result = crackBestGuess(text, keyLen);
+            output.textContent = result;
+          } else if (mode === "autocrack") {
+            const result = autoCrack(text);
             output.textContent = result;
           }
         }, 100);
@@ -186,7 +230,7 @@
         const val = e.target.value;
         document
           .getElementById("keyInput")
-          .classList.toggle("hidden", val === "crack" || val === "bestguess");
+          .classList.toggle("hidden", val === "crack" || val === "bestguess" || val === "autocrack");
         document
           .getElementById("maxKeyLenInput")
           .classList.toggle("hidden", val !== "crack" && val !== "bestguess");
