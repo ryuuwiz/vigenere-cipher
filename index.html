@@ -1,240 +1,173 @@
-<!DOCTYPE html>
-<html lang="id">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vigenère Cipher Tool</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body class="bg-gray-100 text-gray-800 p-4">
-    <div class="max-w-xl mx-auto bg-white p-6 rounded-2xl shadow-md">
-      <h1 class="text-2xl font-bold mb-4 text-center">
-        🔐 Vigenère Cipher Tool
-      </h1>
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Advanced Vigenère Cipher Tool</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f9f9f9; }
+    h2 { color: #333; }
+    textarea, input { width: 100%; margin-top: 5px; margin-bottom: 15px; padding: 8px; font-size: 1em; }
+    button { padding: 10px 15px; font-size: 1em; margin-right: 10px; cursor: pointer; }
+    .output { white-space: pre-wrap; background: #fff; padding: 10px; border: 1px solid #ccc; min-height: 100px; }
+    canvas { margin-top: 20px; }
+  </style>
+</head>
+<body><h2>Vigenère Cipher Tool</h2><label>Input Text:</label>
 
-      <div class="mb-4">
-        <label class="block font-semibold">Pilih Mode:</label>
-        <select id="mode" class="w-full mt-1 p-2 border rounded">
-          <option value="encrypt">Enkripsi</option>
-          <option value="decrypt">Dekripsi</option>
-          <option value="crack">Brute-force Crack</option>
-          <option value="bestguess">Crack (Best Guess)</option>
-          <option value="autocrack">Auto Crack</option>
-        </select>
-      </div>
+<textarea id="inputText" rows="4" oninput="updateFrequencyChart()"></textarea><label>Key (for Encrypt/Decrypt):</label> <input type="text" id="key">
 
-      <div class="mb-4">
-        <label class="block font-semibold">Teks:</label>
-        <textarea
-          id="inputText"
-          class="w-full mt-1 p-2 border rounded"
-          rows="3"
-        ></textarea>
-      </div>
+<div>
+  <button onclick="encrypt()">Encrypt</button>
+  <button onclick="decrypt()">Decrypt</button>
+  <button onclick="bruteForce()">Bruteforce Crack</button>
+  <button onclick="autoCrack()">AutoCrack</button>
+  <button onclick="estimateKeyLength()">Estimate Key Length</button>
+</div><h3>Output:</h3>
+<div class="output" id="output"></div><canvas id="freqChart" width="600" height="300"></canvas>
 
-      <div id="keyInput" class="mb-4">
-        <label class="block font-semibold">Key:</label>
-        <input id="key" type="text" class="w-full mt-1 p-2 border rounded" />
-      </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>
+function vigenere(text, key, encrypt = true) {
+  text = text.toUpperCase().replace(/[^A-Z]/g, '');
+  key = key.toUpperCase().replace(/[^A-Z]/g, '');
+  let result = '', keyIndex = 0;
 
-      <div id="maxKeyLenInput" class="mb-4 hidden">
-        <label class="block font-semibold">Panjang Maks Key:</label>
-        <input
-          id="maxKeyLen"
-          type="number"
-          value="4"
-          min="1"
-          max="10"
-          class="w-full mt-1 p-2 border rounded"
-        />
-      </div>
+  for (let i = 0; i < text.length; i++) {
+    let charCode = text.charCodeAt(i) - 65;
+    let keyCode = key.charCodeAt(keyIndex % key.length) - 65;
+    if (!encrypt) keyCode = -keyCode;
+    let newChar = String.fromCharCode(((charCode + keyCode + 26) % 26) + 65);
+    result += newChar;
+    keyIndex++;
+  }
+  return result;
+}
 
-      <button
-        onclick="run()"
-        class="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
-      >
-        Jalankan
-      </button>
+function encrypt() {
+  const text = document.getElementById('inputText').value;
+  const key = document.getElementById('key').value;
+  const result = vigenere(text, key, true);
+  document.getElementById('output').textContent = result;
+  updateFrequencyChart(result);
+}
 
-      <div class="mt-6">
-        <h2 class="font-bold mb-2">Hasil:</h2>
-        <pre
-          id="output"
-          class="bg-gray-200 p-3 rounded whitespace-pre-wrap"
-        ></pre>
-      </div>
-    </div>
+function decrypt() {
+  const text = document.getElementById('inputText').value;
+  const key = document.getElementById('key').value;
+  const result = vigenere(text, key, false);
+  document.getElementById('output').textContent = result;
+  updateFrequencyChart(result);
+}
 
-    <script>
-      const ALPHABET = "abcdefghijklmnopqrstuvwxyz";
+const commonWords = ["THE", "AND", "THAT", "HAVE", "FOR", "NOT", "WITH", "YOU", "THIS", "BUT"];
 
-      function formatText(text) {
-        return text.toLowerCase().replace(/[^a-z]/g, "");
+function scoreEnglish(text) {
+  let score = 0;
+  for (let word of commonWords) {
+    if (text.includes(word)) score++;
+  }
+  return score;
+}
+
+function bruteForce() {
+  const text = document.getElementById('inputText').value;
+  let best = { score: 0, key: '', result: '' };
+
+  for (let len = 1; len <= 3; len++) {
+    let max = Math.pow(26, len);
+    for (let i = 0; i < max; i++) {
+      let key = '';
+      let n = i;
+      for (let j = 0; j < len; j++) {
+        key = String.fromCharCode((n % 26) + 65) + key;
+        n = Math.floor(n / 26);
       }
-
-      function generateKeystream(text, key) {
-        key = formatText(key);
-        return (
-          key.repeat(Math.floor(text.length / key.length)) +
-          key.slice(0, text.length % key.length)
-        );
+      let decrypted = vigenere(text, key, false);
+      let score = scoreEnglish(decrypted);
+      if (score > best.score) {
+        best = { score, key, result: decrypted };
       }
+    }
+  }
+  document.getElementById('output').textContent = best.result ? `Best Key: ${best.key}\nDecrypted: ${best.result}` : 'No match found.';
+  updateFrequencyChart(best.result);
+}
 
-      function encrypt(text, key) {
-        text = formatText(text);
-        const keystream = generateKeystream(text, key);
-        return [...text]
-          .map((char, i) => {
-            const val =
-              (ALPHABET.indexOf(char) + ALPHABET.indexOf(keystream[i])) % 26;
-            return ALPHABET[val];
-          })
-          .join("");
-      }
+function autoCrack() {
+  const text = document.getElementById('inputText').value;
+  const sampleKeys = ["KEY", "SECRET", "VIGENERE", "HELLO", "WORLD"];
+  let best = { score: 0, key: '', result: '' };
 
-      function decrypt(cipher, key) {
-        cipher = formatText(cipher);
-        const keystream = generateKeystream(cipher, key);
-        return [...cipher]
-          .map((char, i) => {
-            const val =
-              (ALPHABET.indexOf(char) - ALPHABET.indexOf(keystream[i]) + 26) % 26;
-            return ALPHABET[val];
-          })
-          .join("");
-      }
+  for (let key of sampleKeys) {
+    let decrypted = vigenere(text, key, false);
+    let score = scoreEnglish(decrypted);
+    if (score > best.score) {
+      best = { score, key, result: decrypted };
+    }
+  }
+  document.getElementById('output').textContent = best.result ? `Guessed Key: ${best.key}\nDecrypted: ${best.result}` : 'No likely match found.';
+  updateFrequencyChart(best.result);
+}
 
-      function crack(ciphertext, maxKeyLen) {
-        ciphertext = formatText(ciphertext);
-        let results = [];
-        const tryKeys = (len, prefix = "") => {
-          if (prefix.length === len) {
-            const decrypted = decrypt(ciphertext, prefix);
-            results.push(`[Key: ${prefix}] => ${decrypted}`);
-            return;
+function estimateKeyLength() {
+  const text = document.getElementById('inputText').value.toUpperCase().replace(/[^A-Z]/g, '');
+  const N = text.length;
+  const freq = Array(26).fill(0);
+
+  for (let i = 0; i < N; i++) freq[text.charCodeAt(i) - 65]++;
+
+  const ic = freq.reduce((sum, f) => sum + f * (f - 1), 0) / (N * (N - 1));
+  const estimatedKeyLength = 0.027 * N / ((N - 1) * ic - 0.038 * N + 0.065);
+  const rounded = Math.round(estimatedKeyLength);
+
+  document.getElementById('output').textContent = `Estimated Key Length (Friedman Test): ${rounded}\n(IC = ${ic.toFixed(4)})`;
+}
+
+// Frequency Chart
+let chart;
+const englishFreq = [8.2, 1.5, 2.8, 4.3, 13.0, 2.2, 2.0, 6.1, 7.0, 0.2, 0.8, 4.0, 2.4, 6.7, 7.5, 1.9, 0.1, 6.0, 6.3, 9.1, 2.8, 1.0, 2.4, 0.2, 2.0, 0.1];
+
+function updateFrequencyChart(text = '') {
+  text = text.toUpperCase().replace(/[^A-Z]/g, '');
+  const freq = Array(26).fill(0);
+  for (let char of text) {
+    freq[char.charCodeAt(0) - 65]++;
+  }
+  const total = freq.reduce((a, b) => a + b, 0);
+  const freqPercent = freq.map(v => (total ? (v / total) * 100 : 0));
+
+  const labels = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+  if (chart) {
+    chart.data.datasets[0].data = freqPercent;
+    chart.update();
+  } else {
+    const ctx = document.getElementById('freqChart').getContext('2d');
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Cipher Text Frequency (%)',
+            data: freqPercent,
+            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1
+          },
+          {
+            label: 'English Frequency (%)',
+            data: englishFreq,
+            backgroundColor: 'rgba(255, 99, 132, 0.4)',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 1
           }
-          for (let ch of ALPHABET) {
-            tryKeys(len, prefix + ch);
-          }
-        };
-        for (let i = 1; i <= maxKeyLen; i++) {
-          tryKeys(i);
+        ]
+      },
+      options: {
+        scales: {
+          y: { beginAtZero: true, max: 15 }
         }
-        return results;
       }
-
-      function crackBestGuess(ciphertext, keyLen) {
-        ciphertext = formatText(ciphertext);
-        let bestScore = 0;
-        let bestKey = "";
-        let bestPlain = "";
-
-        function score(text) {
-          const common = "etaoinshrdlu";
-          return [...text].reduce((s, c) => s + (common.includes(c) ? 1 : 0), 0);
-        }
-
-        const tryKeys = (len, prefix = "") => {
-          if (prefix.length === len) {
-            const plain = decrypt(ciphertext, prefix);
-            const sc = score(plain);
-            if (sc > bestScore) {
-              bestScore = sc;
-              bestKey = prefix;
-              bestPlain = plain;
-            }
-            return;
-          }
-          for (let ch of ALPHABET) {
-            tryKeys(len, prefix + ch);
-          }
-        };
-
-        tryKeys(keyLen);
-        return `[Kemungkinan Terbaik]\nKey: ${bestKey}\nPlaintext: ${bestPlain}`;
-      }
-
-      function autoCrack(ciphertext) {
-        ciphertext = formatText(ciphertext);
-        let bestResult = '';
-        let bestKey = '';
-        let bestPlain = '';
-        let bestScore = 0;
-
-        function score(text) {
-          const common = "etaoinshrdlu";
-          return [...text].reduce((s, c) => s + (common.includes(c) ? 1 : 0), 0);
-        }
-
-        for (let keyLen = 1; keyLen <= 10; keyLen++) {
-          let currentBestScore = 0;
-          let currentBestKey = "";
-          let currentBestPlain = "";
-
-          const tryKeys = (len, prefix = "") => {
-            if (prefix.length === len) {
-              const plain = decrypt(ciphertext, prefix);
-              const sc = score(plain);
-              if (sc > currentBestScore) {
-                currentBestScore = sc;
-                currentBestKey = prefix;
-                currentBestPlain = plain;
-              }
-              return;
-            }
-            for (let ch of ALPHABET) {
-              tryKeys(len, prefix + ch);
-            }
-          };
-
-          tryKeys(keyLen);
-
-          if (currentBestScore > bestScore) {
-            bestScore = currentBestScore;
-            bestKey = currentBestKey;
-            bestPlain = currentBestPlain;
-          }
-        }
-
-        return `[AUTO CRACK]\nKey: ${bestKey}\nPlaintext: ${bestPlain}`;
-      }
-
-      function run() {
-        const mode = document.getElementById("mode").value;
-        const text = document.getElementById("inputText").value;
-        const key = document.getElementById("key").value;
-        const output = document.getElementById("output");
-        output.textContent = "Memproses...";
-
-        setTimeout(() => {
-          if (mode === "encrypt") {
-            output.textContent = encrypt(text, key);
-          } else if (mode === "decrypt") {
-            output.textContent = decrypt(text, key);
-          } else if (mode === "crack") {
-            const maxKeyLen = parseInt(document.getElementById("maxKeyLen").value);
-            const results = crack(text, maxKeyLen);
-            output.textContent = results.join("\n");
-          } else if (mode === "bestguess") {
-            const keyLen = parseInt(document.getElementById("maxKeyLen").value);
-            const result = crackBestGuess(text, keyLen);
-            output.textContent = result;
-          } else if (mode === "autocrack") {
-            const result = autoCrack(text);
-            output.textContent = result;
-          }
-        }, 100);
-      }
-
-      document.getElementById("mode").addEventListener("change", (e) => {
-        const val = e.target.value;
-        document
-          .getElementById("keyInput")
-          .classList.toggle("hidden", val === "crack" || val === "bestguess" || val === "autocrack");
-        document
-          .getElementById("maxKeyLenInput")
-          .classList.toggle("hidden", val !== "crack" && val !== "bestguess");
-      });
-    </script>
-  </body>
+    });
+  }
+}
+</script></body>
 </html>
